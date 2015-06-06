@@ -1,0 +1,117 @@
+FORMAT: 1A
+HOST: https://api.bitwage.co/v1
+
+# Bitwage API V1
+## Overview
+The Bitwage API allows developers to connect applications to Bitwage.
+
+===
+>##### The Bitwage API allows you to:
+>+ View Company Information
+>>+ Basic Company Profile
+>>+ Employee Information
+>>+ Payroll History
+
+>+ Invite Contractors or Employees to your Company
+>+ Pay Contractors or Employees of your Company
+
+===
+#### All requests must include an `application/json` Content-Type header and go over SSL. 
+#### The Production API entry point is `https://api.bitwage.co/v1`
+#### The Sandbox API entry point is `https://api.bitwage.biz/v1`
+
+# Group Ticker
+**Ticker Endpoint** shows current Bitwage ticker.
+
+## Ticker [/ticker]
+### Show Ticker [GET]
++ Response 200 (application/json)
+
+        {
+          "price": "245.34"
+        }
+
+# Group Authentication
+## API Key + Secret 
+===
+Bitwage offers API Key + Secret Authentication to access your own Bitwage Employer Account via the API.
+
+
+
+* Create a new API Key and Secret in your Profile & Security page of the Bitwage site.
+ 
+   >* **Enhanced Security Controls**: can verify the actions and account information you wish to be accessible via the API and specify whether only certain IP Addresses have access.  **Coming Soon**
+   >* **Note**: Users should never share API key + secret with anyone else.
+
+### Headers 
+Use the API Key and Secret to add three headers **ACCESS_KEY**, **ACCESS_SIGNATURE**, and **ACCESS_NONCE** to every API call that requires authentication.
+This scheme can be called “HMAC authentication.”
+
+1. The **ACCESS_KEY** header is your API Key. 
+2. The **ACCESS_NONCE** header is a positive integer number that must increase with every request you make. Currently it must be submitted as a header. **Coming Soon** you can also submit it as a root-level parameter in a JSON POST request and as a GET parameter in the URL.
+    >   **Python 2.7 example**:
+    >>       import time
+    >>       ACCESS_NONCE = int(time.time() * 1e6)
+    
+    >   **Ruby example**:
+    >>      ACCESS_NONCE = (Time.now.to_f * 1e6).to_i
+3. The **ACCESS_SIGNATURE** header is a HMAC-SHA256 hash of the nonce concatentated with the full URL and body of the HTTP request, encoded using your API Secret. 
+    >   **Python 2.7 example**:
+    >>       import hmac
+    >>       message = str(ACCESS_NONCE) + url + ('' if not body else body)
+    >>       ACCESS_SIGNATURE=hmac.new(API_SECRET, message, hashlib.sha256).hexdigest()
+
+    >   **Ruby example**:
+    >>      require 'openssl'
+    >>      message = ACCESS_NONCE.to_s + url + body.to_s
+    >>      ACCESS_SIGNATURE = OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha256'), API_SECRET, message)
+
+### Out-of-order Processing
+Sometimes network traffic can cause near-simultaneous API calls to arrive out of order. 
+Since the nonce must always be increasing, an API call with a higher nonce may arrive earlier than a separate call with a lower nonce if they are initiated very quickly together. When this happens, the 2nd call will be dropped as invalid. 
+To fix this, a separate expire parameter can be included, specifying a unix timestamp after which the call will not process.
+When the expire parameter is included, the nonce is ignored. We recommend setting the expire parameter to no greater than 15 minutes in the future to prevent replay attempts.
+
+>   **Python 2.7 example**:
+>>      import time
+>>      expiration = int(time.time()+300)
+>>      url = 'https://api.bitwage.co/v1/userid?expire='+str(expiration)
+
+>   **Ruby example**:
+>>      expiration = (Time.now.to_f + 300).to_i
+>>      url = 'https://api.bitwage.co/v1/userid?expire=' + expiration.to_s
+
+## Authentication Test: Get User_id [/userid?expire={expiration}]
+### Get User_id [GET]
++ Request (application/json)
+    
+    + Headers
+
+            ACCESS_KEY: [Your API Key]
+            ACCESS_NONCE: [Always increasing integer Nonce]
+            ACCESS_SIGNATURE: [Signature Hash]
+
++ Parameters
+    + expiration (unix timestamp, optional) ... Specifies the time after which the call will not process. When included, the nonce is ignored.
+            
+
++ Response 200 (application/json)
+
+        {
+            "user_id": "139343039393"
+        }
+            
+# Group API Security Best Practices
+## Storing Credentials Securely
+
+You should take great care to ensure your credentials are stored securely. If someone obtains your API Secret, they will be able to use Bitwage as if they were you.
+
+In particular, you should avoid storing these credentials in your code base (which gets added to version control) or in your database unless you have encrypted them securely. Separating credentials from your code base and database is a good practice.
+
+You can always regenerate your API key if you feel it has been compromised. Currently API key access is available only to Employer accounts and user must opt-in by generating an API Key and Secret.
+## Validating SSL Certificates
+
+It is also very important that your application validates our SSL certificate when it connects over https. This helps prevent a man in the middle attack. If you are using a client library, this may be turned on by default, but you should confirm this. If you see a setting to ‘verify SSL’ you should always ensure it is set to true.
+
+
+
