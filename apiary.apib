@@ -59,6 +59,7 @@ This scheme can be called “HMAC authentication.”
     >   **Python 2.7 example**:
     >>       import hmac
     >>       import hashlib
+    >>       body = ''
     >>       message = str(ACCESS_NONCE) + url + ('' if not body else body)
     >>       ACCESS_SIGNATURE=hmac.new(API_SECRET, message, hashlib.sha256).hexdigest()
 
